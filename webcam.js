@@ -15,9 +15,10 @@ var FLASH_OBJ_ID = 'webcam_movie_obj';
 var URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
 var localStorage = window.localStorage;
 var nav = navigator;
+var doc = document;
 
 var Webcam = {
-	version: '1.0.6',
+	version: '1.0.7',
 	
 	// globals
 	loaded: false,   // true when webcam movie finishes loading
@@ -79,7 +80,7 @@ var Webcam = {
 		// create webcam preview and attach to DOM element
 		// pass in actual DOM reference, ID, or CSS selector
 		if (typeof(elem) == 'string') {
-			elem = document.getElementById(elem) || document.querySelector(elem);
+			elem = doc.getElementById(elem) || doc.querySelector(elem);
 		}
 		if (!elem) {
 			return this.dispatch('error', "Could not locate DOM element to attach to.");
@@ -88,7 +89,7 @@ var Webcam = {
 		elem.innerHTML = ''; // start with empty element
 		
 		// insert "peg" so we can insert our preview canvas adjacent to it later on
-		var peg = document.createElement('div');
+		var peg = doc.createElement('div');
 		peg.className = this.params.css_prefix + '__peg';
 		elem.appendChild( peg );
 		this.peg = peg;
@@ -117,7 +118,7 @@ var Webcam = {
 
 		if (this.userMedia) {
 			// setup webcam video container
-			var video = document.createElement('video');
+			var video = doc.createElement('video');
 			video.className = this.params.css_prefix + '__video';
 			video.setAttribute('autoplay', 'autoplay');
 			video.style.width = '' + this.params.dest_width + 'px';
@@ -170,7 +171,7 @@ var Webcam = {
 		} else {
 			// flash fallback
 			window.Webcam = Webcam; // needed for flash-to-js interface
-			var div = document.createElement('div');
+			var div = doc.createElement('div');
 			div.className = this.params.css_prefix + '__flash-container';
 			div.innerHTML = this.getSWFHTML();
 			elem.appendChild( div );
@@ -195,32 +196,35 @@ var Webcam = {
 	},
 	
 	reset: function() {
-		// shutdown camera, reset to potentially attach again
-		if (this.preview_active) this.unfreeze();
-		
-		// attempt to fix issue #64
-		this.unflip();
-		
-		if (this.userMedia) {
-			if (this.stream) {
-				if (this.stream.getVideoTracks) {
-					// get video track to call stop on it
-					var tracks = this.stream.getVideoTracks();
-					if (tracks && tracks[0] && tracks[0].stop) tracks[0].stop();
-				} else if (this.stream.stop) {
-					// deprecated, may be removed in future
-					this.stream.stop();
+		try {
+			// shutdown camera, reset to potentially attach again
+			if (this.preview_active) this.unfreeze();
+			
+			// attempt to fix issue #64
+			this.unflip();
+			
+			if (this.userMedia) {
+				if (this.stream) {
+					if (this.stream.getVideoTracks) {
+						// get video track to call stop on it
+						var tracks = this.stream.getVideoTracks();
+						if (tracks && tracks[0] && tracks[0].stop) tracks[0].stop();
+					} else if (this.stream.stop) {
+						// deprecated, may be removed in future
+						this.stream.stop();
+					}
 				}
+				delete this.stream;
+				delete this.video;
 			}
-			delete this.stream;
-			delete this.video;
-		}
 
-		if (this.userMedia !== true) {
-			// call for turn off camera in flash
-			this.getMovie()._releaseCamera();
+			if (this.userMedia !== true) {
+				// call for turn off camera in flash
+				this.getMovie()._releaseCamera();
+			}
+		} catch (e) {
+			this.dispatch('error', "Could not reset webcam: " + err, err);
 		}
-
 		if (this.container) {
 			this.container.innerHTML = '';
 			delete this.container;
@@ -299,6 +303,9 @@ var Webcam = {
 		this.set('swfURL', value);
 	},
 	
+	hasUserMedia: function() {
+		return _userMedia || this.userMedia;
+	},
 	
 	hasFlash: function() {
 		// return true if browser supports flash, false otherwise
@@ -327,17 +334,17 @@ var Webcam = {
 	},
 
 	getUploadFallbackNode: function() {
-		var input = document.createElement('input');
+		var input = doc.createElement('input');
 		input.type = 'file';
 		input.accept = 'image/*';
 		input.setAttribute('capture', 'camera');
 		input.id = 'imageLoader';
 		input.name = 'imageLoader';
 
-		var div = document.createElement('div');
+		var div = doc.createElement('div');
 		div.className = this.params.css_prefix + '__upload-fallback';
 		div.appendChild(input);
-		input.addEventListener('change', handleImage.bind(this), false);
+		input.addEventListener('change', handleImageInput.bind(this), false);
 
 		return div;
 	},
@@ -363,7 +370,7 @@ var Webcam = {
 		if (!swfURL) {
 			// find our script tag, and use that base URL
 			var base_url = '';
-			var scpts = document.getElementsByTagName('script');
+			var scpts = doc.getElementsByTagName('script');
 			for (var idx = 0, len = scpts.length; idx < len; idx++) {
 				var src = scpts[idx].getAttribute('src');
 				if (src && src.match(/\/webcam(\.min)?\.js/)) {
@@ -399,8 +406,8 @@ var Webcam = {
 	getMovie: function() {
 		// get reference to movie object/embed in DOM
 		if (!this.loaded) return this.dispatch('error', "Flash Movie is not loaded yet");
-		var movie = document.getElementById(FLASH_OBJ_ID);
-		if (!movie || !movie._snap) movie = document.getElementById(FLASH_EMBED_ID);
+		var movie = doc.getElementById(FLASH_OBJ_ID);
+		if (!movie || !movie._snap) movie = doc.getElementById(FLASH_EMBED_ID);
 		if (!movie) this.dispatch('error', "Cannot locate Flash movie in DOM");
 		return movie;
 	},
@@ -425,7 +432,7 @@ var Webcam = {
 		var final_height = params.crop_height || params.dest_height;
 		
 		// create canvas for holding preview
-		var preview_canvas = document.createElement('canvas');
+		var preview_canvas = doc.createElement('canvas');
 		preview_canvaspeg.className = this.params.css_prefix + '__preview';
 		preview_canvas.width = final_width;
 		preview_canvas.height = final_height;
@@ -548,7 +555,7 @@ var Webcam = {
 		}
 		
 		// create offscreen canvas element to hold pixels
-		var canvas = document.createElement('canvas');
+		var canvas = doc.createElement('canvas');
 		canvas.width = this.params.dest_width;
 		canvas.height = this.params.dest_height;
 		var context = canvas.getContext('2d');
@@ -568,7 +575,7 @@ var Webcam = {
 			
 			// crop if desired
 			if (params.crop_width && params.crop_height) {
-				var crop_canvas = document.createElement('canvas');
+				var crop_canvas = doc.createElement('canvas');
 				crop_canvas.width = params.crop_width;
 				crop_canvas.height = params.crop_height;
 				var crop_context = crop_canvas.getContext('2d');
@@ -670,35 +677,6 @@ var Webcam = {
 		}
 	},
 	
-	b64ToUint6: function(nChr) {
-		// convert base64 encoded character to 6-bit integer
-		// from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Base64_encoding_and_decoding
-		return nChr > 64 && nChr < 91 ? nChr - 65
-			: nChr > 96 && nChr < 123 ? nChr - 71
-			: nChr > 47 && nChr < 58 ? nChr + 4
-			: nChr === 43 ? 62 : nChr === 47 ? 63 : 0;
-	},
-
-	base64DecToArr: function(sBase64, nBlocksSize) {
-		// convert base64 encoded string to Uintarray
-		// from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Base64_encoding_and_decoding
-		var sB64Enc = sBase64.replace(/[^A-Za-z0-9\+\/]/g, ""), nInLen = sB64Enc.length,
-			nOutLen = nBlocksSize ? Math.ceil((nInLen * 3 + 1 >> 2) / nBlocksSize) * nBlocksSize : nInLen * 3 + 1 >> 2, 
-			taBytes = new Uint8Array(nOutLen);
-		
-		for (var nMod3, nMod4, nUint24 = 0, nOutIdx = 0, nInIdx = 0; nInIdx < nInLen; nInIdx++) {
-			nMod4 = nInIdx & 3;
-			nUint24 |= this.b64ToUint6(sB64Enc.charCodeAt(nInIdx)) << 18 - 6 * nMod4;
-			if (nMod4 === 3 || nInLen - nInIdx === 1) {
-				for (nMod3 = 0; nMod3 < 3 && nOutIdx < nOutLen; nMod3++, nOutIdx++) {
-					taBytes[nOutIdx] = nUint24 >>> (16 >>> nMod3 & 24) & 255;
-				}
-				nUint24 = 0;
-			}
-		}
-		return taBytes;
-	},
-	
 	upload: function(image_data_uri, target_url, callback) {
 		// submit image data to server using binary AJAX
 		var form_elem_name = this.params.upload_name || 'webcam';
@@ -735,7 +713,7 @@ var Webcam = {
 		};
 		
 		// create a blob and decode our base64 to binary
-		var blob = new Blob( [ this.base64DecToArr(raw_image_data) ], {type: 'image/'+image_fmt} );
+		var blob = new Blob( [ base64DecToArr(raw_image_data) ], { type: 'image/'+image_fmt } );
 		
 		// stuff into a form, so servers can easily receive it as a standard file upload
 		var form = new FormData();
@@ -746,19 +724,7 @@ var Webcam = {
 
 		return http;
 	}
-	
 };
-
-Webcam.init();
-
-if (typeof define === 'function' && define.amd) {
-	define( function() { return Webcam; } );
-} else if (typeof module === 'object' && module.exports) {
-	module.exports = Webcam;
-} else {
-	window.Webcam = Webcam;
-}
-
 
 // helpers
 function drawImageScaled(img, ctx) {
@@ -770,10 +736,10 @@ function drawImageScaled(img, ctx) {
 	var centerShift_x = ( canvas.width - img.width*ratio ) / 2;
 	var centerShift_y = ( canvas.height - img.height*ratio ) / 2;  
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	ctx.drawImage(img, 0,0, img.width, img.height, centerShift_x,centerShift_y,img.width*ratio, img.height*ratio);  
+	ctx.drawImage(img, 0, 0, img.width, img.height, centerShift_x, centerShift_y, img.width*ratio, img.height*ratio);  
 }
 
-function handleImage(e) {
+function handleImageInput(e) {
 	// http://jsfiddle.net/influenztial/qy7h5/
 	var reader = new FileReader();
 	var self = this;
@@ -784,11 +750,50 @@ function handleImage(e) {
 				data: img,
 				width: img.width,
 				height: img.height
-			}
-		}
+			};
+		};
 		img.src = event.target.result;
-	}
+	};
 	reader.readAsDataURL(e.target.files[0]);
+}
+
+function b64ToUint6(nChr) {
+	// convert base64 encoded character to 6-bit integer
+	// from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Base64_encoding_and_decoding
+	return nChr > 64 && nChr < 91 ? nChr - 65
+		: nChr > 96 && nChr < 123 ? nChr - 71
+		: nChr > 47 && nChr < 58 ? nChr + 4
+		: nChr === 43 ? 62 : nChr === 47 ? 63 : 0;
+}
+
+function base64DecToArr(sBase64, nBlocksSize) {
+	// convert base64 encoded string to Uintarray
+	// from: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Base64_encoding_and_decoding
+	var sB64Enc = sBase64.replace(/[^A-Za-z0-9\+\/]/g, ""), nInLen = sB64Enc.length,
+		nOutLen = nBlocksSize ? Math.ceil((nInLen * 3 + 1 >> 2) / nBlocksSize) * nBlocksSize : nInLen * 3 + 1 >> 2, 
+		taBytes = new Uint8Array(nOutLen);
+	
+	for (var nMod3, nMod4, nUint24 = 0, nOutIdx = 0, nInIdx = 0; nInIdx < nInLen; nInIdx++) {
+		nMod4 = nInIdx & 3;
+		nUint24 |= b64ToUint6(sB64Enc.charCodeAt(nInIdx)) << 18 - 6 * nMod4;
+		if (nMod4 === 3 || nInLen - nInIdx === 1) {
+			for (nMod3 = 0; nMod3 < 3 && nOutIdx < nOutLen; nMod3++, nOutIdx++) {
+				taBytes[nOutIdx] = nUint24 >>> (16 >>> nMod3 & 24) & 255;
+			}
+			nUint24 = 0;
+		}
+	}
+	return taBytes;
+}
+
+Webcam.init();
+
+if (typeof define === 'function' && define.amd) {
+	define( function() { return Webcam; } );
+} else if (typeof module === 'object' && module.exports) {
+	module.exports = Webcam;
+} else {
+	window.Webcam = Webcam;
 }
 
 }(window));
