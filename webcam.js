@@ -354,7 +354,7 @@ var Webcam = {
 	},
 	
 	detectFlash: function() {
-		if (this.params.force_file) {
+		if (this.params.force_file || this.params.swfURL === null) {
 			return false;
 		}
 		// return true if browser supports flash, false otherwise
@@ -418,7 +418,7 @@ var Webcam = {
 		}
 		
 		// set default swfURL if not explicitly set
-		if (!swfURL) {
+		if (swfURL==='') {
 			// find our script tag, and use that base URL
 			var base_url = '';
 			var scpts = document.getElementsByTagName('script');
