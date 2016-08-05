@@ -391,7 +391,7 @@ var Webcam = {
 		input.setAttribute('capture', 'camera');
 		input.id = 'imageLoader';
 		input.name = 'imageLoader';
-
+		this.fallbackNodeInput = input;
 		var div = document.createElement('div');
 		div.className = this.params.css_prefix + '__upload-fallback';
 		div.appendChild(input);
@@ -670,7 +670,12 @@ var Webcam = {
 				func();
 			}
 			else {
-				return this.dispatch('error', "Select picture first.");
+				//Trigger file selection if we have no image
+				if(this.fallbackNodeInput) {
+					this.fallbackNodeInput.click();
+				} else {
+					return this.dispatch('error', "Select picture first.");
+				}
 			}
 
 		}
