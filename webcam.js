@@ -827,17 +827,7 @@ function handleImageInput(e) {
 	var self = this;
 	var reader = new FileReader();
 	reader.onload = function(event) {
-		var img = new Image();
-		img.onload = function() {
-			self.fallbackImage = {
-				data: img,
-				width: img.width,
-				height: img.height
-			};
-
-			self.dispatch('imageSelected', rawFile);
-		};
-		img.src = event.target.result;
+			self.dispatch('imageSelected', event.target.result);;
 	};
 	reader.readAsDataURL(rawFile);
 }
