@@ -109,6 +109,15 @@ var Webcam = {
 	},
 	
 	attach: function(elem) {
+		if(this.setuppingVideo) {
+			//Retry later
+			var self = this;
+			setTimeout(function() {
+				self.attach(elem);
+			},500);
+			return;
+		}
+		
 		// create webcam preview and attach to DOM element
 		// pass in actual DOM reference, ID, or CSS selector
 		if (typeof(elem) == 'string') {
@@ -173,6 +182,7 @@ var Webcam = {
 			
 			// ask user for access to their camera
 			var self = this;
+			this.setuppingVideo = true;
 			this.mediaDevices.getUserMedia({
 				"audio": false,
 				"video": this.params.constraints || {
@@ -191,7 +201,9 @@ var Webcam = {
 					self.dispatch('load');
 					self.dispatch('live');
 					self.flip();
+					self.setuppingVideo = false;
 				};
+				
 				video.src = URL.createObjectURL( stream ) || stream;
 			}, function(err) {
 				return self.dispatch('error', err);
@@ -230,6 +242,15 @@ var Webcam = {
 	},
 	
 	reset: function() {
+		if(this.setuppingVideo) {
+			//Retry later
+			var self = this;
+			setTimeout(function() {
+				self.reset();
+			},500);
+			return;
+		}
+
 		try {
 			// shutdown camera, reset to potentially attach again
 			if (this.preview_active) this.unfreeze();
@@ -250,6 +271,11 @@ var Webcam = {
 					}
 				}
 				delete this.stream;
+
+				if(this.video) {
+					this.video.remove();
+				}
+
 				delete this.video;
 			}
 			
